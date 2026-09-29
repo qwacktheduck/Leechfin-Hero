@@ -14,6 +14,8 @@ import net.runelite.client.ui.overlay.OverlayUtil;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.api.Projectile;
+import net.runelite.api.Point;
 
 public class LeechfinFishingOverlay extends Overlay
 {
@@ -45,8 +47,10 @@ public class LeechfinFishingOverlay extends Overlay
 
 		if (plugin.isLeechfinFishing())
 		{
-			// render leechfin tiles only when actively fishing
 			renderLeechfinTiles(graphics, worldView);
+
+			// Our new projectile highlights
+			renderLeechfinProjectiles(graphics);
 		}
 		else
 		{
@@ -150,5 +154,40 @@ public class LeechfinFishingOverlay extends Overlay
 		}
 
 		OverlayUtil.renderPolygon(graphics, tilePoly, color, fillColor, new BasicStroke(2));
+	}
+	private void renderLeechfinProjectiles(Graphics2D graphics)
+	{
+		for (Projectile fish : client.getProjectiles())
+		{
+			// Ignore anything that isn't a leechfin.
+			if (fish.getId() != LeechfinFishingPlugin.LEECHFIN_ID)
+			{
+				continue;
+			}
+
+			// Convert the fish's 3D position into screen coordinates.
+			Point screenPoint = Perspective.localToCanvas(
+					client,
+					(int) fish.getX(),
+					(int) fish.getY(),
+					(int) fish.getZ()
+			);
+
+			if (screenPoint == null)
+			{
+				continue;
+			}
+
+			int x = screenPoint.getX();
+			int y = screenPoint.getY();
+
+			// Translucent green fill.
+			graphics.setColor(new Color(0, 255, 0, 65));
+			graphics.fillOval(x - 14, y - 14, 28, 28);
+
+			// Bright green outline.
+			graphics.setColor(Color.GREEN);
+			graphics.drawOval(x - 14, y - 14, 28, 28);
+		}
 	}
 }

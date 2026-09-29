@@ -68,6 +68,7 @@ public class LeechfinFishingPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
+		System.out.println("LEECHFIN PLUGIN STARTED!");
 		log.debug("Leechfin Fishing started!");
 		overlayManager.add(overlay);
 	}
@@ -84,7 +85,6 @@ public class LeechfinFishingPlugin extends Plugin
 	{
 		return configManager.getConfig(LeechfinFishingConfig.class);
 	}
-
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
