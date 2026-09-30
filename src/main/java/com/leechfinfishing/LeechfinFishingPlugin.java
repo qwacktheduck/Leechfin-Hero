@@ -25,6 +25,8 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 @PluginDescriptor(
 	name = "Leechfin Fishing",
@@ -53,6 +55,12 @@ public class LeechfinFishingPlugin extends Plugin
 	private @Getter Projectile nextLeechfin;
 	private @Getter LocalPoint nextLeechfinPoint;
 
+	private final Map<Projectile, Integer> fishNumbers =
+			new IdentityHashMap<>();
+
+	private int waveFishCount = 0;
+	private int lastFishStartCycle = -1;
+
 	@Inject
 	private OverlayManager overlayManager;
 
@@ -65,19 +73,25 @@ public class LeechfinFishingPlugin extends Plugin
 	@Inject
 	private LeechfinFishingOverlay overlay;
 
+	@Inject
+	private LeechfinInventoryOverlay inventoryOverlay;
+
 	@Override
 	protected void startUp() throws Exception
 	{
-		System.out.println("LEECHFIN PLUGIN STARTED!");
 		log.debug("Leechfin Fishing started!");
+
 		overlayManager.add(overlay);
+		overlayManager.add(inventoryOverlay);
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
 		log.debug("Leechfin Fishing stopped!");
+
 		overlayManager.remove(overlay);
+		overlayManager.remove(inventoryOverlay);
 	}
 
 	@Provides
@@ -112,6 +126,17 @@ public class LeechfinFishingPlugin extends Plugin
 		}
 
 		List<Projectile> leechfin = getSortedLeechfin();
+
+		if (isLeechfinFishing())
+		{
+			trackStarPowerFish(leechfin);
+		}
+		else
+		{
+			fishNumbers.clear();
+			waveFishCount = 0;
+			lastFishStartCycle = -1;
+		}
 		// no leechfin on screen
 		if (leechfin.isEmpty())
 		{
@@ -283,4 +308,59 @@ public class LeechfinFishingPlugin extends Plugin
 
 		return leechfinFishingSpots;
 	}
+
+	private void trackStarPowerFish(List<Projectile> fish)
+	{
+		// Remove fish that have disappeared.
+		List<Projectile> present = new ArrayList<>();
+
+		for (Projectile p : client.getProjectiles())
+		{
+			if (p.getId() == LEECHFIN_ID)
+			{
+				present.add(p);
+			}
+		}
+
+		fishNumbers.keySet().retainAll(present);
+
+		// Identify newly spawned fish.
+		List<Projectile> newFish = new ArrayList<>();
+
+		for (Projectile p : fish)
+		{
+			if (!fishNumbers.containsKey(p))
+			{
+				newFish.add(p);
+			}
+		}
+
+		// Process them in spawning order.
+		newFish.sort(Comparator.comparingInt(Projectile::getStartCycle));
+
+		for (Projectile p : newFish)
+		{
+			int startCycle = p.getStartCycle();
+
+			// A gap indicates a new wave.
+			if (lastFishStartCycle >= 0 &&
+					startCycle - lastFishStartCycle > CLIENT_TICKS_PER_GAME_TICK * 2)
+			{
+				waveFishCount = 0;
+			}
+
+			waveFishCount = (waveFishCount % 22) + 1;
+
+			fishNumbers.put(p, waveFishCount);
+			lastFishStartCycle = startCycle;
+		}
+	}
+
+	public boolean isStarPowerFish(Projectile fish)
+	{
+		Integer number = fishNumbers.get(fish);
+
+		return number != null && number >= 10 && number <= 14;
+	}
+
 }
