@@ -27,15 +27,34 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import net.runelite.api.Skill;
+import net.runelite.api.events.StatChanged;
+import net.runelite.client.events.ConfigChanged;
 
 @PluginDescriptor(
-	name = "Leechfin Fishing",
-	description = "Highlighting for leechfin fishing.",
-	tags = {"leechfin", "fishing", "highlight", "vampyrium"}
+		name = "Leechfin Hero",
+		description = "Guitar Hero-inspired Leechfin Fishing.",
+		tags = {"leechfin", "fishing", "guitar hero","vampyrium"}
 )
+
 public class LeechfinFishingPlugin extends Plugin
 {
 	public static final Logger log = LoggerFactory.getLogger(LeechfinFishingPlugin.class);
+
+	// LEECHFIN HERO SCORING
+
+	private static final String SCORE_GROUP = "leechfinfishing";
+	private static final String HIGH_SCORE_KEY = "heroHighScore";
+	private static final String HIGH_STREAK_KEY = "heroHighStreak";
+
+	private long runScore = 0;
+	private long highScore = 0;
+
+	private int catchStreak = 0;
+	private int highestStreak = 0;
+	private int lastFishingXp = -1;
+
+	private boolean scoreSessionActive = false;
 
 	// manually coded ids until api updated
 	// varbit used to determine if actively fishing leechfin spot
@@ -68,6 +87,9 @@ public class LeechfinFishingPlugin extends Plugin
 	private Client client;
 
 	@Inject
+	private ConfigManager configManager;
+
+	@Inject
 	private LeechfinFishingConfig config;
 
 	@Inject
@@ -76,22 +98,63 @@ public class LeechfinFishingPlugin extends Plugin
 	@Inject
 	private LeechfinInventoryOverlay inventoryOverlay;
 
+	@Inject
+	private LeechfinScoreOverlay scoreOverlay;
+
 	@Override
 	protected void startUp() throws Exception
 	{
+		String savedStreak = configManager.getConfiguration(
+				SCORE_GROUP,
+				HIGH_STREAK_KEY
+		);
+
+		try
+		{
+			highestStreak = savedStreak == null
+					? 0
+					: Integer.parseInt(savedStreak);
+		}
+		catch (NumberFormatException ex)
+		{
+			highestStreak = 0;
+		}
+
+		// Load the saved Leechfin Hero high score.
+		String savedScore = configManager.getConfiguration(
+				SCORE_GROUP,
+				HIGH_SCORE_KEY
+		);
+
+		try
+		{
+			highScore = savedScore == null
+					? 0
+					: Long.parseLong(savedScore);
+		}
+		catch (NumberFormatException ex)
+		{
+			highScore = 0;
+		}
+
 		log.debug("Leechfin Fishing started!");
 
 		overlayManager.add(overlay);
 		overlayManager.add(inventoryOverlay);
+		overlayManager.add(scoreOverlay);
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
+		// Save the high score before closing.
+		finishScoreSession();
+
 		log.debug("Leechfin Fishing stopped!");
 
 		overlayManager.remove(overlay);
 		overlayManager.remove(inventoryOverlay);
+		overlayManager.remove(scoreOverlay);
 	}
 
 	@Provides
@@ -102,6 +165,9 @@ public class LeechfinFishingPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
+		// Check whether a scoring run has started or ended.
+		updateScoreSession();
+
 		WorldView worldView = client.getTopLevelWorldView();
 
 		leechfinFishingPoints = findLeechfinFishingPoints(worldView);
@@ -362,5 +428,204 @@ public class LeechfinFishingPlugin extends Plugin
 
 		return number != null && number >= 10 && number <= 14;
 	}
+
+	private void updateScoreSession()
+	{
+		boolean fishing = isLeechfinFishing();
+
+		// Player has started actively fishing.
+		if (fishing && !scoreSessionActive)
+		{
+			scoreSessionActive = true;
+
+			// Start a fresh run.
+			runScore = 0;
+			catchStreak = 0;
+
+			lastFishingXp =
+					client.getSkillExperience(Skill.FISHING);
+		}
+
+		// Player is no longer actively fishing.
+		else if (!fishing && scoreSessionActive)
+		{
+			finishScoreSession();
+		}
+	}
+
+	private void finishScoreSession()
+	{
+		if (!scoreSessionActive)
+		{
+			return;
+		}
+
+		// Save personal best.
+		if (runScore > highScore)
+		{
+			highScore = runScore;
+
+			configManager.setConfiguration(
+					SCORE_GROUP,
+					HIGH_SCORE_KEY,
+					highScore
+			);
+		}
+
+		// End the run.
+		scoreSessionActive = false;
+		catchStreak = 0;
+	}
+
+
+
+	@Subscribe
+	public void onStatChanged(StatChanged event)
+	{
+		// We only care about Fishing experience.
+		if (event.getSkill() != Skill.FISHING)
+		{
+			return;
+		}
+
+		int currentXp = event.getXp();
+
+		// Establish baseline if necessary.
+		if (lastFishingXp < 0)
+		{
+			lastFishingXp = currentXp;
+			return;
+		}
+
+		// Calculate actual XP received.
+		int xpGained = currentXp - lastFishingXp;
+
+		lastFishingXp = currentXp;
+
+		// Don't award points outside a fishing session.
+		if (!scoreSessionActive || xpGained <= 0)
+		{
+			return;
+		}
+
+		// Every fish that awards XP counts toward the streak,
+		// including failed catches (3 XP).
+		catchStreak++;
+
+// Update personal best streak.
+		if (catchStreak > highestStreak)
+		{
+			highestStreak = catchStreak;
+
+			configManager.setConfiguration(
+					SCORE_GROUP,
+					HIGH_STREAK_KEY,
+					highestStreak
+			);
+		}
+
+		runScore += (long) xpGained * getScoreMultiplier();
+	}
+
+
+// METHODS USED BY THE SCORE OVERLAY
+
+	public int getScoreMultiplier()
+	{
+		if (catchStreak >= 30)
+		{
+			return 4;
+		}
+		if (catchStreak >= 21)
+		{
+			return 3;
+		}
+		if (catchStreak >= 11)
+		{
+			return 2;
+		}
+
+		return 1;
+	}
+
+	public int getCatchStreak()
+	{
+		return catchStreak;
+	}
+
+	public int getHighestStreak()
+	{
+		return highestStreak;
+	}
+
+	public long getRunScore()
+	{
+		return runScore;
+	}
+
+	public long getHeroHighScore()
+	{
+		// Display a new personal best immediately,
+		// even before the session finishes.
+		return Math.max(highScore, runScore);
+	}
+
+	public boolean isScoreSessionActive()
+	{
+		return scoreSessionActive;
+	}
+	public void breakCatchStreak()
+	{
+		if (scoreSessionActive)
+		{
+			catchStreak = 0;
+		}
+	}
+
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (!SCORE_GROUP.equals(event.getGroup()))
+		{
+			return;
+		}
+
+		// Only process actual checkbox values.
+		if (!"true".equals(event.getNewValue()) &&
+				!"false".equals(event.getNewValue()))
+		{
+			return;
+		}
+
+		// RESET STREAKS
+		if ("resetStreaks".equals(event.getKey()))
+		{
+			catchStreak = 0;
+			highestStreak = 0;
+
+			configManager.setConfiguration(
+					SCORE_GROUP,
+					HIGH_STREAK_KEY,
+					0
+			);
+
+		}
+
+		// RESET HIGH SCORE
+		else if ("resetHighScore".equals(event.getKey()))
+		{
+			highScore = 0;
+
+			configManager.setConfiguration(
+					SCORE_GROUP,
+					HIGH_SCORE_KEY,
+					0
+			);
+
+		}
+	}
+
+
 
 }

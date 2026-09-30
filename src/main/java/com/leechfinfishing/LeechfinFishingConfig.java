@@ -1,3 +1,4 @@
+
 package com.leechfinfishing;
 
 import java.awt.Color;
@@ -5,31 +6,41 @@ import net.runelite.client.config.Alpha;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
-import net.runelite.client.config.ConfigSection;
 
 @ConfigGroup("leechfinfishing")
 public interface LeechfinFishingConfig extends Config
 {
-	@ConfigSection(
-		name = "Active tile",
-		description = "Active leechfin tile to be clicked.",
-		position = 0
+	// Our only visible configuration option.
+	@ConfigItem(
+			position = 0,
+			keyName = "resetStreaks",
+			name = "Reset streaks",
+			description = "Toggle to reset current and highest note streaks.",
+			warning = "Reset your current and highest note streak? Scores will not be affected."
 	)
-	String activeTile = "activeTile";
-
-	@ConfigSection(
-		name = "Next tile",
-		description = "Next leechfin tile to be clicked after the active tile.",
-		position = 1
-	)
-	String nextTile = "nextTile";
+	default boolean resetStreaks()
+	{
+		return false;
+	}
 
 	@ConfigItem(
-		position = 1,
-		keyName = "highlightActiveTile",
-		name = "Highlight active tile",
-		description = "Whether to highlight the active tile.",
-		section = "activeTile"
+			position = 1,
+			keyName = "resetHighScore",
+			name = "Reset high score",
+			description = "Clears your saved Leechfin Hero high score.",
+			warning = "Are you sure you want to reset your high score?"
+	)
+	default boolean resetHighScore()
+	{
+		return false;
+	}
+	// ORIGINAL SETTINGS - HIDDEN BUT PRESERVED
+
+	@ConfigItem(
+			keyName = "highlightActiveTile",
+			name = "Highlight active tile",
+			description = "",
+			hidden = true
 	)
 	default boolean highlightActiveTile()
 	{
@@ -38,11 +49,10 @@ public interface LeechfinFishingConfig extends Config
 
 	@Alpha
 	@ConfigItem(
-		position = 2,
-		keyName = "activeHighlightColor",
-		name = "Highlight color",
-		description = "Configures the highlight color of the active tile.",
-		section = "activeTile"
+			keyName = "activeHighlightColor",
+			name = "Highlight color",
+			description = "",
+			hidden = true
 	)
 	default Color activeHighlightColor()
 	{
@@ -51,11 +61,10 @@ public interface LeechfinFishingConfig extends Config
 
 	@Alpha
 	@ConfigItem(
-		position = 3,
-		keyName = "activeFillColor",
-		name = "Fill color",
-		description = "Configures the fill color of the active tile.",
-		section = "activeTile"
+			keyName = "activeFillColor",
+			name = "Fill color",
+			description = "",
+			hidden = true
 	)
 	default Color activeFillColor()
 	{
@@ -63,11 +72,10 @@ public interface LeechfinFishingConfig extends Config
 	}
 
 	@ConfigItem(
-		position = 1,
-		keyName = "highlightNextTile",
-		name = "Highlight next tile",
-		description = "Whether to highlight the next tile.",
-		section = "nextTile"
+			keyName = "highlightNextTile",
+			name = "Highlight next tile",
+			description = "",
+			hidden = true
 	)
 	default boolean highlightNextTile()
 	{
@@ -76,11 +84,10 @@ public interface LeechfinFishingConfig extends Config
 
 	@Alpha
 	@ConfigItem(
-		position = 2,
-		keyName = "nextHighlightColor",
-		name = "Highlight color",
-		description = "Configures the highlight color of the next tile.",
-		section = "nextTile"
+			keyName = "nextHighlightColor",
+			name = "Next highlight color",
+			description = "",
+			hidden = true
 	)
 	default Color nextHighlightColor()
 	{
@@ -89,11 +96,10 @@ public interface LeechfinFishingConfig extends Config
 
 	@Alpha
 	@ConfigItem(
-		position = 3,
-		keyName = "nextFillColor",
-		name = "Fill color",
-		description = "Configures the fill color of the next tile.",
-		section = "nextTile"
+			keyName = "nextFillColor",
+			name = "Next fill color",
+			description = "",
+			hidden = true
 	)
 	default Color nextFillColor()
 	{
@@ -102,10 +108,10 @@ public interface LeechfinFishingConfig extends Config
 
 	@Alpha
 	@ConfigItem(
-		position = 2,
-		keyName = "leechfinSpotColor",
-		name = "Leechfin spot color",
-		description = "Configures the highlight color of the leechfin fishing spot when not actively fishing."
+			keyName = "leechfinSpotColor",
+			name = "Leechfin spot color",
+			description = "",
+			hidden = true
 	)
 	default Color leechfinSpotColor()
 	{
@@ -114,10 +120,10 @@ public interface LeechfinFishingConfig extends Config
 
 	@Alpha
 	@ConfigItem(
-		position = 2,
-		keyName = "fullInventoryColor",
-		name = "Full inventory color",
-		description = "Configures the highlight color of the leechfin fishing spot when inventory is full."
+			keyName = "fullInventoryColor",
+			name = "Full inventory color",
+			description = "",
+			hidden = true
 	)
 	default Color fullInventoryColor()
 	{

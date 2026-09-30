@@ -446,6 +446,8 @@ public class LeechfinFishingOverlay extends Overlay {
 // Only trigger if the player is facing the correct lane.
 				if (!isFacingLane(lane, center))
 				{
+					// Fish passed while facing the wrong lane.
+					plugin.breakCatchStreak();
 					continue;
 				}
 
